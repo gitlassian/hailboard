@@ -1,0 +1,15 @@
+**
+!packages/server/pyproject.toml
+!packages/server/uv.lock
+!packages/server/src
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!packages/protocol/package.json
+!packages/protocol/src
+!packages/web
+**/node_modules
+**/dist
+**/__pycache__
+**/.venv

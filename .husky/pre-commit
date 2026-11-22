@@ -1,0 +1,3 @@
+# Fast checks on the files being committed. Skip in an emergency with: git commit --no-verify
+pnpm exec biome check --staged --no-errors-on-unmatched --error-on-warnings
+pnpm lint:server

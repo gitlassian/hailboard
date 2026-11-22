@@ -1,0 +1,1839 @@
+:root {
+  /* One dark palette, the one of the board design. */
+  --window: #13161b; /* behind the cards */
+  --side: #0f1115; /* sidebar, top bar, document sheets */
+  --panel: #181b21; /* cards */
+  --raised: #20242c; /* code, highlighted blocks */
+  --hover: #252a33;
+  --line: #282c35;
+  --line-strong: #363c48;
+  --ink: #e4e7ec;
+  --muted: #9aa1ad;
+  --faint: #636a77;
+  --brand: #67acd5;
+  --brand-soft: #14232d;
+  --button: #3d769a;
+  --button-text: #ffffff;
+  --ok: #62c48f;
+  --ok-soft: #14291f;
+  --wait: #f3c229;
+  --wait-soft: #332b0d;
+  --ask: #f4957d;
+  --ask-soft: #33201a;
+  --ask-line: #6b4840;
+  /* Person colours: a person and their agents share one. */
+  --p0: #f0935e;
+  --p1: #57c2a0;
+  --p2: #f07a9c;
+  --p3: #dcb944;
+  --p4: #6fb0e0;
+  --p5: #a78bfa;
+  /* Corners. Whatever sits inside a rounded box gets that box's radius less the distance between
+     the two edges (padding and border), so the curves stay parallel. */
+  --r-card: 24px; /* the two big cards */
+  --card-pad: 12px;
+  --r-1: calc(var(--r-card) - var(--card-pad) - 1px); /* 11px: what sits in a card's padding */
+  --in-pad: 6px;
+  --r-2: calc(var(--r-1) - var(--in-pad) - 1px); /* 4px: what sits inside that */
+  --r-seg: 9px; /* a slider */
+  --r-seg-in: calc(var(--r-seg) - 3px); /* 6px: its highlight, 2px padding and 1px border in */
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--window);
+  color: var(--ink);
+  font: 13px / 1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+code {
+  font: 12px / 1.4 var(--mono);
+  background: var(--raised);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.p0 {
+  --c: var(--p0);
+}
+.p1 {
+  --c: var(--p1);
+}
+.p2 {
+  --c: var(--p2);
+}
+.p3 {
+  --c: var(--p3);
+}
+.p4 {
+  --c: var(--p4);
+}
+.p5 {
+  --c: var(--p5);
+}
+
+.ic {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Pictures: a person as a character, an agent's logo as a sticker at its lower right corner. The
+   sticker hangs outside the box, so nothing around a picture may clip it. */
+.pic {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+.pic svg {
+  display: block;
+  overflow: visible;
+}
+
+.pic .av {
+  width: 100%;
+  height: 100%;
+}
+
+.pic .lg {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  width: 16px;
+  height: 16px;
+}
+
+.pic.sm {
+  width: 18px;
+  height: 18px;
+}
+
+.pic.sm .lg {
+  right: -6px;
+  bottom: -4px;
+  width: 13px;
+  height: 13px;
+}
+
+.pic .body {
+  fill: var(--c);
+}
+
+.pic .body polygon {
+  stroke: var(--c);
+  stroke-linejoin: round;
+}
+
+.pic .halo {
+  fill: #fff;
+  stroke: #fff;
+  stroke-width: 2.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  --lgfill: #fff;
+}
+
+.pic use.halo {
+  stroke-width: 3;
+}
+
+.pic use.top {
+  stroke: none;
+}
+
+.pic .eye {
+  fill: #14161a;
+}
+
+.sprite {
+  position: absolute;
+}
+
+/* Logo colours. The halo turns them white through --lgfill. */
+.fill-claude {
+  fill: var(--lgfill, #d97757);
+}
+
+.fill-codex {
+  fill: var(--lgfill, url(#codex-blue));
+}
+
+.lg-grok .top,
+.lg-hermes .top {
+  fill: #000;
+}
+
+.lg-other .plain {
+  fill: #4b5260;
+}
+
+.lg-other text {
+  fill: #fff;
+  font: 700 14px var(--sans);
+}
+
+.pic.off {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+/* A picture with the name next to it. The gap leaves room for the sticker. */
+.idn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  vertical-align: middle;
+  line-height: 16px;
+}
+
+.idn:has(> .pic.sm) {
+  gap: 11px;
+}
+
+.idn .nm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Layout: sidebar on the left, a view in the middle, the chat on the right. */
+.app {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr) 392px;
+  grid-template-rows: 44px minmax(0, 1fr);
+  height: 100dvh;
+}
+
+/* Sidebar */
+.side {
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--side);
+  border-right: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  flex: none;
+}
+
+.group {
+  padding: 8px;
+}
+
+.group + .group {
+  border-top: 1px solid var(--line);
+}
+
+.group-title {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  /* The mark inside is 6px in: 10 - 6 = 4. */
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.row.on {
+  background: var(--hover);
+}
+
+.row .grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 4px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font: 600 10px var(--mono);
+}
+
+.board-live {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.board-live.live {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent);
+}
+
+.group.agents {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  /* The 8px scrollbar is the right padding. */
+  padding-right: 0;
+}
+
+.side-empty {
+  padding: 4px 8px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 2px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.state span {
+  margin-left: auto;
+}
+
+.sdot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.sdot.working {
+  background: var(--ok);
+}
+
+.sdot.waiting {
+  background: var(--wait);
+}
+
+.sdot.idle {
+  background: var(--faint);
+}
+
+.sdot.offline {
+  border: 1px solid var(--faint);
+}
+
+.row.agent {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 0 6px;
+  padding: 4px 8px;
+  line-height: 16px;
+}
+
+.row.agent .grow {
+  display: flex;
+  flex-direction: column;
+}
+
+.row.agent .main,
+.row.agent .sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.row.agent .sub,
+.row.agent .when {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+/* The time sits on the line of the name, not between the two lines. */
+.row.agent .when {
+  align-self: start;
+  font-variant-numeric: tabular-nums;
+}
+
+.row.agent.offline .main {
+  color: var(--faint);
+}
+
+.sub em {
+  font-style: normal;
+}
+
+.sub em.ask {
+  color: var(--ask);
+}
+
+.sub em.wait {
+  color: var(--wait);
+}
+
+.side-foot {
+  flex: none;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 2px 8px 4px;
+  font-size: 12px;
+}
+
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.person.away {
+  color: var(--faint);
+}
+
+/* Top bar with the views */
+.topbar {
+  grid-column: 2 / 4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  padding: 0 12px;
+  background: var(--side);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+
+/* A slider: a row of choices with a highlight that moves to the one that is on. */
+.seg {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-seg);
+  background: var(--panel);
+}
+
+/* Inside a card the slider is a shade darker than the card. */
+.card-head .seg {
+  background: var(--side);
+}
+
+.seg-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-radius: var(--r-seg-in);
+  background: var(--hover);
+  pointer-events: none;
+}
+
+.seg-thumb.moving {
+  transition:
+    transform 0.2s cubic-bezier(0.3, 0.7, 0.2, 1),
+    width 0.2s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.seg-item {
+  position: relative;
+  height: 22px;
+  padding: 0 12px;
+  border-radius: var(--r-seg-in);
+  color: var(--muted);
+  line-height: 22px;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.seg-item:hover,
+.seg-item.on {
+  color: var(--ink);
+}
+
+.seg-item .n {
+  margin-left: 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seg-thumb.moving {
+    transition: none;
+  }
+}
+
+.conn {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.conn::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wait);
+}
+
+.conn.live::before {
+  background: var(--ok);
+}
+
+/* Cards: the view in the middle and the chat */
+.view,
+.aside {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-card);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.view {
+  margin: 12px 6px 12px 12px;
+}
+
+.aside {
+  margin: 12px 12px 12px 6px;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  flex: none;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+}
+
+/* What a view has to say or to choose lives in its heading, so the body of every view starts at
+   the same height. */
+.card-head .r,
+.head-end {
+  margin-left: auto;
+}
+
+.card-head .r {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-head .r b {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.head-end,
+.head-mid {
+  display: flex;
+  font-weight: 400;
+}
+
+/* A slider with many choices scrolls sideways inside the heading. */
+.head-mid {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.head-mid::-webkit-scrollbar {
+  display: none;
+}
+
+/* The short count after a slider keeps its place; the slider is what gives way. */
+.head-mid + .r {
+  flex: none;
+}
+
+/* A scrollbar that takes room (a mouse, or "always show scroll bars") would push the content off
+   centre: wider space on the right than on the left. So everything that scrolls keeps its
+   scrollbar inside its own right padding: a thin one, always given its room, so the space on the
+   right is the same whether there is anything to scroll or not. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  /* Right: 4px of padding and an 8px scrollbar make the same 12px as the other sides. */
+  padding: var(--card-pad) 4px var(--card-pad) var(--card-pad);
+}
+
+.scroll::-webkit-scrollbar,
+.group.agents::-webkit-scrollbar {
+  width: 8px;
+  height: 0;
+}
+
+.stream::-webkit-scrollbar {
+  width: 6px;
+  height: 0;
+}
+
+.scroll::-webkit-scrollbar-track,
+.stream::-webkit-scrollbar-track,
+.group.agents::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The handle is 4px wide; the rest of the scrollbar's width is see-through border. */
+.scroll::-webkit-scrollbar-thumb,
+.stream::-webkit-scrollbar-thumb,
+.group.agents::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 99px;
+  background: var(--line-strong);
+  background-clip: padding-box;
+}
+
+.stream::-webkit-scrollbar-thumb {
+  border-width: 1px;
+}
+
+.scroll::-webkit-scrollbar-thumb:hover,
+.stream::-webkit-scrollbar-thumb:hover,
+.group.agents::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
+}
+
+/* A browser that cannot size its scrollbar (Firefox): no scrollbar to see, the full padding
+   back. The wheel, the trackpad and the keyboard scroll as before. */
+@supports not selector(::-webkit-scrollbar) {
+  .scroll {
+    overflow-y: auto;
+    padding-right: var(--card-pad);
+    scrollbar-width: none;
+  }
+
+  .stream {
+    overflow-y: auto;
+    padding-right: 14px;
+    scrollbar-width: none;
+  }
+
+  .group.agents {
+    overflow-y: auto;
+    padding-right: 8px;
+    scrollbar-width: none;
+  }
+}
+
+.pane-note {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 4px;
+}
+
+.pane-note p + p {
+  margin-top: 6px;
+}
+
+.pane-note.small {
+  font-size: 12px;
+  color: var(--faint);
+  padding: 0 0 4px;
+}
+
+/* Board view */
+/* The cut sheet: one piece per task, interlocking, with arrows for the conversations. */
+.board-scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+.cutboard {
+  position: relative;
+  /* All of the view: the pieces end one padding away from the card on every side. */
+  flex: 1 1 0;
+  min-height: 340px;
+  margin: -4px;
+}
+
+.cutboard > svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.piece {
+  fill: color-mix(in srgb, var(--c) 7%, var(--panel));
+  cursor: pointer;
+  transition: fill 0.15s;
+}
+
+.piece.hot {
+  fill: color-mix(in srgb, var(--c) 13%, var(--panel));
+}
+
+.piece.free {
+  fill: transparent;
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 5;
+}
+
+.piece.free.hot {
+  fill: var(--raised);
+}
+
+.weave {
+  opacity: 0.11;
+  pointer-events: none;
+}
+
+.cutboard pattern line,
+.cutboard pattern .ring {
+  stroke: var(--c);
+  fill: none;
+}
+
+.cutboard pattern circle:not(.ring) {
+  fill: var(--c);
+}
+
+.rim {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1.4;
+  pointer-events: none;
+}
+
+.cut-tile {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+
+/* On a narrow screen: the same pieces as a list of cards. */
+.cutboard.list {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  margin: 0;
+}
+
+.cut-tile.card {
+  position: static;
+  gap: 6px;
+  padding: 12px;
+  border: 1.4px solid var(--c);
+  border-radius: var(--r-1);
+  background: color-mix(in srgb, var(--c) 7%, var(--panel));
+}
+
+.cut-tile.card.free {
+  border: 1.2px dashed var(--line-strong);
+  background: transparent;
+}
+
+.cut-tile .tile-top {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+}
+
+.cut-tile .name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.state-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 99px;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.state-chip.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.state-chip.wait {
+  background: var(--wait-soft);
+  color: var(--wait);
+}
+
+.state-chip.ask {
+  background: var(--ask-soft);
+  color: var(--ask);
+}
+
+.cut-tile .doing {
+  display: flex;
+  flex: none;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.cut-tile .doing::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--c);
+}
+
+.cut-tile .desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  /* The first thing to give way when a piece is short. */
+  flex: 0 1 auto;
+  min-height: 0;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 46ch;
+  margin-top: 2px;
+  color: color-mix(in srgb, var(--ink) 72%, transparent);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.cut-tile.short .desc {
+  -webkit-line-clamp: 2;
+}
+
+.cut-tile.tight .desc {
+  display: none;
+}
+
+.cut-tile .cut-grow {
+  flex: 1;
+}
+
+.cut-tile .tile-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cut-tile .who {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* A picture without a name: room for its sticker before whatever follows. */
+.cut-tile .who:not(:has(.nm)) {
+  margin-right: 6px;
+}
+
+.cut-tile .who .pic {
+  flex: none;
+}
+
+.cut-tile .tile-foot .more {
+  flex: none;
+  color: var(--faint);
+}
+
+.cut-tile .who .nm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cut-tile .cut-when {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--faint);
+}
+
+.cut-tile.free .name,
+.cut-tile.free .desc {
+  color: var(--muted);
+}
+
+.talks {
+  pointer-events: none;
+}
+
+.talk {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.talk.asking {
+  stroke: var(--wait);
+  stroke-dasharray: 2 7;
+  animation: march 0.9s linear infinite;
+}
+
+.talk.answered {
+  stroke: var(--ok);
+  opacity: 0.75;
+}
+
+.talk-dot.asking,
+.head-asking {
+  fill: var(--wait);
+}
+
+.talk-dot.answered,
+.head-answered {
+  fill: var(--ok);
+}
+
+.talk-dot.answered {
+  opacity: 0.75;
+}
+
+.talk-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 12px;
+  line-height: normal;
+  white-space: nowrap;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.talk-label.asking {
+  background: var(--wait-soft);
+  color: var(--wait);
+  border: 1px solid color-mix(in srgb, var(--wait) 45%, transparent);
+}
+
+.talk-label.answered {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent);
+}
+
+@keyframes march {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+/* Tasks view */
+.tasks-scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Three columns as tall as the view. */
+.columns {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--in-pad);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  background: var(--window);
+}
+
+.column-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 6px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.column-none {
+  padding: 10px 8px 8px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+/* A card: its corner follows the column's. */
+.task {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 4px;
+  min-width: 0;
+  min-height: 90px;
+  padding: 10px 12px;
+  border-radius: var(--r-2);
+  background: var(--raised);
+}
+
+.task + .task {
+  margin-top: var(--in-pad);
+}
+
+/* Every line of text in a card starts 28px in; the state mark and the picture hang to its left. */
+.task-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  line-height: 18px;
+}
+
+.st {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 1.5px solid var(--faint);
+  border-radius: 50%;
+}
+
+.st.doing {
+  border-color: var(--brand);
+  background: conic-gradient(var(--brand) 0 50%, transparent 0);
+}
+
+.st.done {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: #0b0c10;
+}
+
+.st-check {
+  width: 10px;
+  height: 10px;
+  stroke-width: 3.5;
+}
+
+.task-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task.done .task-title {
+  color: var(--muted);
+}
+
+.task-flag {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.task-flag.wait {
+  background: var(--wait);
+}
+
+.task-flag.ask {
+  background: var(--ask);
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+  min-width: 0;
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.task-meta.bare,
+.task-foot {
+  padding-left: 28px;
+}
+
+/* An 18px picture and 10px to the name: 28. */
+.task-meta .idn {
+  gap: 10px;
+}
+
+.task-meta .pics {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.task-added {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+  /* Room for the sticker of the picture that follows "from". */
+  padding-right: 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-meta:not(.bare) .task-when {
+  padding-right: 0;
+}
+
+.task-foot {
+  align-self: end;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Context view */
+.sheet {
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  background: var(--window);
+  overflow: hidden;
+}
+
+/* Documents as tabs: the open one is underlined. */
+.doc-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.doc-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: -1px;
+  padding: 11px 9px 10px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font: 12px var(--mono);
+  white-space: nowrap;
+}
+
+.doc-tab:hover {
+  color: var(--ink);
+}
+
+.doc-tab.on {
+  border-bottom-color: var(--brand);
+  color: var(--ink);
+}
+
+.doc-pin {
+  width: 14px;
+  height: 14px;
+  color: var(--ask);
+}
+
+.sheet-head {
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 99px;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sheet-meta {
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.sheet-body {
+  margin: 0;
+  padding: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 12.5px / 1.6 var(--mono);
+  color: var(--ink);
+}
+
+/* Chat */
+.stream {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  /* 6px below the last message's own 4px margin and 8px padding, see .msg.asks. Right: 8px of
+     padding and a 6px scrollbar make the same 14px as the left; a card that needs a person
+     reaches over the padding, up to the scrollbar. */
+  padding: 6px 8px 2px 14px;
+}
+
+.stream[hidden] {
+  display: none;
+}
+
+.stream-note {
+  padding: 16px 2px;
+  color: var(--muted);
+}
+
+.stream-note p + p {
+  margin-top: 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.older {
+  display: block;
+  margin: 6px auto;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.day {
+  margin: 4px 0 6px;
+  color: var(--faint);
+  font-size: 12px;
+  text-align: center;
+}
+
+.event {
+  padding: 6px 0;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.event > span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 4px;
+}
+
+.msg {
+  padding: 8px 0;
+}
+
+.msg .head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  min-width: 0;
+}
+
+.msg .from {
+  color: var(--c);
+  font-weight: 600;
+}
+
+.msg .mid,
+.msg .dim {
+  color: var(--faint);
+}
+
+.msg .dim {
+  margin-left: auto;
+  flex: none;
+}
+
+.msg .reply {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--faint);
+  font-size: 12px;
+  text-align: left;
+}
+
+.msg .reply span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg .reply .ic {
+  width: 14px;
+  height: 14px;
+}
+
+.msg .text {
+  margin-top: 4px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A file a message carries. The mark sits in the padding of the plate: 4 + 6 + 1 = 11. */
+.file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: var(--in-pad);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  background: var(--raised);
+  min-width: 0;
+}
+
+.file-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-2);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.file-what {
+  display: grid;
+  min-width: 0;
+  line-height: 16px;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.file-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.file.gone .file-mark {
+  background: var(--panel);
+  color: var(--faint);
+}
+
+.file.gone .file-name {
+  color: var(--muted);
+}
+
+.mention {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 12px;
+  vertical-align: 1px;
+  line-height: 1;
+}
+
+.mention.person {
+  background: color-mix(in srgb, var(--c) 22%, var(--panel));
+  color: var(--ink);
+}
+
+.rcpt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.rcpt .end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.rcpt .note {
+  color: var(--ok);
+}
+
+.rcpt .pics {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  /* The sticker of the last picture hangs 6px to the right: keep the tick clear of it. */
+  padding-right: 6px;
+}
+
+.rcpt .tick.read {
+  color: var(--ok);
+}
+
+.msg.asks {
+  margin: 4px -8px;
+  padding: 8px;
+  border: 1px solid var(--ask-line);
+  /* 6px from the card's padding edge and 1px of its border: 24 - 7. */
+  border-radius: calc(var(--r-card) - 7px);
+  background: var(--ask-soft);
+}
+
+.needs-line {
+  color: var(--ask);
+}
+
+.needs-line .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ask);
+}
+
+.answer-btn {
+  margin-left: auto;
+  color: var(--ask);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.answer {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.answer .hint {
+  margin-top: 6px;
+}
+
+/* Questions: what agents asked each other and what became of it. */
+.q-day {
+  padding: 6px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.q-day-n {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.q {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.q-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.q-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.q-arrow {
+  color: var(--faint);
+}
+
+.q-state {
+  margin-left: auto;
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-state.ok {
+  color: var(--ok);
+}
+
+.q-state.wait {
+  color: var(--wait);
+}
+
+.q-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.q-text .mid {
+  color: var(--faint);
+}
+
+.q:hover .q-text {
+  color: #fff;
+}
+
+.flash {
+  animation: flash 1.6s ease-out;
+  border-radius: 8px;
+}
+
+@keyframes flash {
+  from {
+    box-shadow: 0 0 0 3px var(--brand);
+  }
+  to {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+.notice code {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+/* Copy fields (chat answers, join page) */
+.copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.copy code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 6px 8px;
+}
+
+.copy.wrap code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.copy button {
+  flex: none;
+  background: var(--button);
+  color: var(--button-text);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 13px;
+}
+
+/* Join page and errors */
+.notice {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 16px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.notice h1 {
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+.notice p + p {
+  margin-top: 12px;
+}
+
+.notice li {
+  margin-bottom: 14px;
+}
+
+.join .eyebrow {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.join .board-name {
+  color: var(--brand);
+}
+
+.join .steps h2,
+.join .about h2 {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.join .steps {
+  margin: 24px 0;
+  padding-left: 22px;
+}
+
+.join .steps li {
+  margin-bottom: 22px;
+}
+
+.join .steps li::marker {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.join .about {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-bottom: 18px;
+}
+
+.join .about ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.join .about li {
+  margin-bottom: 6px;
+}
+
+.answer .hint code {
+  overflow-wrap: anywhere;
+}
+
+.cut-tile .desc code {
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+/* Narrow windows: the chat goes under the view. */
+@media (max-width: 1180px) {
+  .app {
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-rows: 44px minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .side {
+    grid-row: 1 / 4;
+  }
+
+  .topbar {
+    grid-column: 2;
+  }
+
+  .view {
+    margin: 12px 12px 6px;
+  }
+
+  .aside {
+    grid-column: 2;
+    margin: 6px 12px 12px;
+  }
+}
+
+/* Phones: one column, agents above. */
+@media (max-width: 760px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .side {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .group.agents {
+    max-height: 40dvh;
+  }
+
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    height: 44px;
+    flex: none;
+  }
+
+  .view,
+  .aside {
+    margin: 12px 12px 0;
+    min-height: 60dvh;
+  }
+
+  .aside {
+    margin-bottom: 12px;
+  }
+}

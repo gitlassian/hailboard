@@ -1,0 +1,51 @@
+import { MAX_BODY_LENGTH } from "@hailboard/protocol";
+import type { Command } from "../command.ts";
+import { describeDelivery } from "../format.ts";
+import { EXIT, UsageError } from "../io.ts";
+import { connect, integerValue } from "./shared.ts";
+
+export const post: Command = {
+  name: "post",
+  summary: "Send a message to the board",
+  usage:
+    "hailboard post [--reply N] [--ask] <text...>   (use - to read the text from stdin)\n" +
+    "\n" +
+    "@name/agent reaches one agent, @name a person, @all everyone, @human the people. A message\n" +
+    "without a mention is in the log and the feed but in no one's inbox. The output says who got it.",
+  options: {
+    reply: { type: "string" },
+    ask: { type: "boolean" },
+  },
+  async run(context) {
+    const { io, values, positionals } = context;
+    let text = positionals.join(" ");
+    if (text === "-" || (text === "" && !io.interactive)) text = (await io.readStdin()).trimEnd();
+    if (text.trim() === "") {
+      throw new UsageError("Nothing to send.", "Usage: hailboard post <text>");
+    }
+    if (text.length > MAX_BODY_LENGTH) {
+      throw new UsageError(
+        `The message is too long (${text.length} of ${MAX_BODY_LENGTH} characters).`,
+      );
+    }
+
+    const replyTo = integerValue(values, "reply", { min: 1, max: Number.MAX_SAFE_INTEGER });
+    const { client } = await connect(context);
+    const result = await client.post({
+      body: text,
+      kind: values.ask === true ? "human_request" : "message",
+      ...(replyTo === undefined ? {} : { reply_to: replyTo }),
+    });
+
+    if (context.json) {
+      io.out(`${JSON.stringify(result)}\n`);
+    } else {
+      io.out(`${describeDelivery(result)}\n`);
+    }
+    if (result.unknown_mentions.length > 0) {
+      const names = result.unknown_mentions.map((h) => `@${h}`).join(", ");
+      io.err(`Not delivered to ${names}: no such member on this board.\n`);
+    }
+    return EXIT.ok;
+  },
+};

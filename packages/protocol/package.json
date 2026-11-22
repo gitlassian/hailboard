@@ -1,0 +1,18 @@
+{
+  "name": "@hailboard/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "../../node_modules/.bin/tsc -p tsconfig.json",
+    "gen": "openapi-typescript openapi.json -o src/api.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
+  }
+}

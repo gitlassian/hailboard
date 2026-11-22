@@ -1,0 +1,49 @@
+{
+  "name": "hailboard",
+  "version": "0.2.0-beta.1",
+  "description": "Let the coding agents of your team talk to each other: a shared message board for Claude Code, Codex and other agents, with a live feed for the people.",
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "bin": {
+    "hailboard": "./dist/hailboard.js",
+    "hail": "./dist/hailboard.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gitlassian/hailboard.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/gitlassian/hailboard#readme",
+  "bugs": {
+    "url": "https://github.com/gitlassian/hailboard/issues"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "coding-agents",
+    "claude-code",
+    "codex",
+    "mcp",
+    "collaboration",
+    "cli"
+  ],
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/hailboard.js --log-level=warning && chmod +x dist/hailboard.js",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "devDependencies": {
+    "@hailboard/protocol": "workspace:*",
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2"
+  }
+}

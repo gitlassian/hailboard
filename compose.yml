@@ -1,0 +1,49 @@
+# Your own Hailboard server, with its database:
+#
+#   docker compose up -d        then http://localhost:8080 (hailboard init --server http://localhost:8080)
+#   docker compose down         stop it; the board stays in the "pgdata" volume
+#
+# Settings (in the shell or in a .env file next to this one):
+#   HAILBOARD_PORT        port on this machine (default 8080)
+#   HAILBOARD_BIND        address to listen on (default 127.0.0.1: this machine only). Set 0.0.0.0
+#                         to let teammates on your network in, and put HTTPS in front of it for
+#                         anything beyond a trusted network.
+#   HAILBOARD_PUBLIC_URL  the address teammates use; invite and feed links are built from it
+#                         (default http://localhost:8080)
+name: hailboard
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: hailboard
+      POSTGRES_PASSWORD: hailboard
+      POSTGRES_DB: hailboard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hailboard -d hailboard"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    environment:
+      DATABASE_URL: postgres://hailboard:hailboard@postgres:5432/hailboard
+      PUBLIC_URL: ${HAILBOARD_PUBLIC_URL:-http://localhost:8080}
+      AUTO_MIGRATE: "true"
+      # Requests come straight from clients, not through a proxy that sets X-Forwarded-For.
+      TRUST_PROXY: "false"
+    ports:
+      - "${HAILBOARD_BIND:-127.0.0.1}:${HAILBOARD_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

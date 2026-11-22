@@ -1,0 +1,403 @@
+import { chmod, mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join, parse, resolve } from "node:path";
+import { nameForSession, sessionOf } from "./agent-sessions.ts";
+import { chooseAgent, detectAgent, toolFromName } from "./agents.ts";
+import { ApiClient, ApiError, normalizeServer } from "./client.ts";
+import { CliError } from "./io.ts";
+
+/** `.hailboard.json` in the repository: which board this repository belongs to. No secrets. */
+export interface RepoConfig {
+  server: string;
+  board_id: string;
+  board_name: string;
+}
+
+export interface Identity {
+  handle: string;
+  api_key: string;
+}
+
+export interface AgentIdentity extends Identity {
+  /** The coding tool this agent was created from ("claude", "codex", ...), when known. */
+  tool?: string;
+}
+
+/** What is stored per board in the user's credentials file. */
+export interface BoardCredentials {
+  server: string;
+  owner: string;
+  human: Identity;
+  /** The person's agents on this board, by name ("claude" for alice/claude). */
+  agents: Record<string, AgentIdentity>;
+  /** The name this machine has on the board, once it has one (see `hailboard device`). */
+  device?: string;
+}
+
+/** The stored shape, including files written before a person could have several agents. */
+interface StoredBoardCredentials {
+  server: string;
+  owner: string;
+  human: Identity;
+  agents?: Record<string, AgentIdentity>;
+  /** Before several agents: the only one. */
+  agent?: Identity;
+  device?: string;
+}
+
+interface CredentialsFile {
+  boards: Record<string, BoardCredentials>;
+}
+
+/** The part of a handle after the owner: "claude" for "alice/claude". */
+export const agentName = (handle: string): string => handle.slice(handle.indexOf("/") + 1);
+
+/** Reads one board's entry, moving a single `agent` from older files into `agents`. */
+function normalize(stored: StoredBoardCredentials): BoardCredentials {
+  const agents: Record<string, AgentIdentity> = { ...(stored.agents ?? {}) };
+  if (stored.agent && !Object.values(agents).some((a) => a.handle === stored.agent?.handle)) {
+    const name = agentName(stored.agent.handle);
+    const tool = toolFromName(name);
+    agents[name] = { ...stored.agent, ...(tool ? { tool } : {}) };
+  }
+  return {
+    server: stored.server,
+    owner: stored.owner,
+    human: stored.human,
+    agents,
+    ...(stored.device ? { device: stored.device } : {}),
+  };
+}
+
+export const REPO_CONFIG_NAME = ".hailboard.json";
+/** The repository config before the project was renamed; still read. */
+export const LEGACY_REPO_CONFIG_NAME = ".agentbridge.json";
+
+/** Where the user's secrets live: ~/.config/hailboard (or $XDG_CONFIG_HOME/hailboard). */
+export function configDir(env: NodeJS.ProcessEnv): string {
+  if (env.HAILBOARD_CONFIG_DIR) return env.HAILBOARD_CONFIG_DIR;
+  return defaultConfigDir(env);
+}
+
+/** The config folder used when HAILBOARD_CONFIG_DIR is not set. */
+export function defaultConfigDir(env: NodeJS.ProcessEnv): string {
+  if (env.XDG_CONFIG_HOME) return join(env.XDG_CONFIG_HOME, "hailboard");
+  return join(env.HOME || homedir(), ".config", "hailboard");
+}
+
+/**
+ * Before the project was renamed, the config folder was ~/.config/agentbridge. The first run
+ * after the rename moves it to the new place, keys and all, unless the new one already exists.
+ */
+export async function adoptLegacyConfig(env: NodeJS.ProcessEnv): Promise<void> {
+  if (env.HAILBOARD_CONFIG_DIR) return;
+  const target = defaultConfigDir(env);
+  const legacy = join(dirname(target), "agentbridge");
+  try {
+    await stat(target);
+    return;
+  } catch {
+    // The new folder does not exist yet.
+  }
+  try {
+    await stat(legacy);
+  } catch {
+    return;
+  }
+  await rename(legacy, target).catch(() => undefined);
+}
+
+/**
+ * Projects joined with a config folder of their own (HAILBOARD_CONFIG_DIR), so that commands
+ * and hooks started without the variable still act as that person. Several people can share one
+ * machine this way. It lives in the default config folder, outside every repository, because
+ * `.hailboard.json` is committed and shared by the whole team.
+ */
+interface FoldersFile {
+  folders: Record<string, string>;
+}
+
+const foldersPath = (env: NodeJS.ProcessEnv) => join(defaultConfigDir(env), "folders.json");
+
+/** A directory in the form used as a key: absolute, with symbolic links resolved. */
+async function folderKey(dir: string): Promise<string> {
+  return realpath(dir).catch(() => resolve(dir));
+}
+
+/**
+ * The environment to use for the project in `dir`: the person's own config folder when the
+ * project was joined with one and HAILBOARD_CONFIG_DIR is not set. An explicit variable wins.
+ */
+export async function envForFolder(
+  env: NodeJS.ProcessEnv,
+  dir: string,
+): Promise<NodeJS.ProcessEnv> {
+  if (env.HAILBOARD_CONFIG_DIR) return env;
+  const file = await readJson<FoldersFile>(foldersPath(env));
+  const remembered = file?.folders?.[await folderKey(dir)];
+  return remembered ? { ...env, HAILBOARD_CONFIG_DIR: remembered } : env;
+}
+
+/**
+ * Remembers which config folder the project in `dir` uses (after `init`), or forgets it when that
+ * is the default folder. Writes only when something changes.
+ */
+export async function rememberFolder(env: NodeJS.ProcessEnv, dir: string): Promise<void> {
+  const key = await folderKey(dir);
+  const file = (await readJson<FoldersFile>(foldersPath(env))) ?? { folders: {} };
+  file.folders ??= {};
+  const own = env.HAILBOARD_CONFIG_DIR ? resolve(env.HAILBOARD_CONFIG_DIR) : undefined;
+  const wanted = own !== undefined && own !== resolve(defaultConfigDir(env)) ? own : undefined;
+  if (file.folders[key] === wanted) return;
+  if (wanted === undefined) delete file.folders[key];
+  else file.folders[key] = wanted;
+  await writePrivate(foldersPath(env), `${JSON.stringify(file, null, 2)}\n`);
+}
+
+const credentialsPath = (env: NodeJS.ProcessEnv) => join(configDir(env), "credentials.json");
+
+export async function readJson<T>(path: string): Promise<T | null> {
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new CliError(`${path} is not valid JSON`, {
+      hint: "Fix or delete the file and run `hailboard init` again.",
+    });
+  }
+}
+
+/** Writes a file readable only by the owner, replacing it atomically. */
+export async function writePrivate(path: string, content: string): Promise<void> {
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  const temp = `${path}.${process.pid}.tmp`;
+  await writeFile(temp, content, { mode: 0o600 });
+  await chmod(temp, 0o600);
+  await rename(temp, path);
+}
+
+export async function readCredentials(env: NodeJS.ProcessEnv): Promise<CredentialsFile> {
+  const file = await readJson<{ boards?: Record<string, StoredBoardCredentials> }>(
+    credentialsPath(env),
+  );
+  const boards: Record<string, BoardCredentials> = {};
+  for (const [id, stored] of Object.entries(file?.boards ?? {})) boards[id] = normalize(stored);
+  return { boards };
+}
+
+export async function saveBoardCredentials(
+  env: NodeJS.ProcessEnv,
+  boardId: string,
+  credentials: BoardCredentials,
+): Promise<void> {
+  const file = await readCredentials(env);
+  file.boards[boardId] = credentials;
+  await writePrivate(credentialsPath(env), `${JSON.stringify(file, null, 2)}\n`);
+}
+
+/** Forgets a board's keys on this machine: its person left the board or was taken off it. */
+export async function forgetBoard(env: NodeJS.ProcessEnv, boardId: string): Promise<void> {
+  const file = await readCredentials(env);
+  if (!(boardId in file.boards)) return;
+  const boards = Object.fromEntries(Object.entries(file.boards).filter(([id]) => id !== boardId));
+  await writePrivate(credentialsPath(env), `${JSON.stringify({ boards }, null, 2)}\n`);
+}
+
+/**
+ * Adds one agent to a board's entry. Reads the file again first, so an agent another process
+ * added in the meantime is kept.
+ */
+export async function saveAgent(
+  env: NodeJS.ProcessEnv,
+  boardId: string,
+  name: string,
+  agent: AgentIdentity,
+): Promise<void> {
+  const file = await readCredentials(env);
+  const board = file.boards[boardId];
+  if (!board) throw new CliError("No credentials for this board on this machine.");
+  board.agents[name] = agent;
+  await writePrivate(credentialsPath(env), `${JSON.stringify(file, null, 2)}\n`);
+}
+
+/**
+ * Registers a new agent for the person on the server and stores its key. When another process
+ * registered the same agent a moment earlier, its stored key is used instead.
+ */
+export async function registerAgent(
+  env: NodeJS.ProcessEnv,
+  boardId: string,
+  credentials: BoardCredentials,
+  name: string,
+  tool: string | undefined,
+  fetchImpl: typeof fetch = fetch,
+): Promise<AgentIdentity> {
+  const client = new ApiClient(credentials.server, credentials.human.api_key, fetchImpl);
+  try {
+    const created = await client.addAgent(name);
+    const agent: AgentIdentity = {
+      handle: created.handle,
+      api_key: created.api_key,
+      ...(tool ? { tool } : {}),
+    };
+    await saveAgent(env, boardId, name, agent);
+    return agent;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      const stored = (await readCredentials(env)).boards[boardId]?.agents[name];
+      if (stored) return stored;
+      throw new CliError(error.message, {
+        hint: error.message.includes("already on this board")
+          ? `Its key is not on this machine. Pick another name with --agent <name>.`
+          : "Remove an agent you no longer use, or reuse one with --agent <name>.",
+      });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Looks for .hailboard.json in `cwd` and then in each parent directory. A repository set up
+ * before the rename has .agentbridge.json instead, which works the same.
+ */
+export async function findRepoConfig(
+  cwd: string,
+): Promise<{ path: string; dir: string; config: RepoConfig } | null> {
+  let dir = cwd;
+  for (;;) {
+    for (const name of [REPO_CONFIG_NAME, LEGACY_REPO_CONFIG_NAME]) {
+      const path = join(dir, name);
+      const config = await readJson<RepoConfig>(path);
+      if (config) return { path, dir, config };
+    }
+    if (dir === parse(dir).root) return null;
+    dir = dirname(dir);
+  }
+}
+
+export async function writeRepoConfig(dir: string, config: RepoConfig): Promise<string> {
+  const path = join(dir, REPO_CONFIG_NAME);
+  await writeFile(path, `${JSON.stringify(config, null, 2)}\n`);
+  return path;
+}
+
+export type Role = "human" | "agent";
+
+export interface Context {
+  server: string;
+  apiKey: string;
+  handle: string;
+  boardId: string | undefined;
+  boardName: string | undefined;
+  role: Role;
+  /** The config folder the keys came from (not set when they came from the environment). */
+  configDir?: string;
+  /** Set when this call registered the agent it acts as (a new agent of the person). */
+  registered?: boolean;
+}
+
+export interface AgentWanted {
+  /** The agent's name (`--agent`); HAILBOARD_AGENT when not given. */
+  agent?: string | undefined;
+  /** The coding tool running the command; detected from the environment when not given. */
+  tool?: string | undefined;
+  /** The session running the command (a hook's input says); from the environment when not given. */
+  session?: string | undefined;
+  fetch?: typeof fetch;
+}
+
+/**
+ * Works out which server, board and identity a command acts as.
+ *
+ * HAILBOARD_SERVER and HAILBOARD_API_KEY override everything (useful in scripts and CI).
+ * Otherwise the repository's .hailboard.json names the board and the credentials file
+ * holds the keys. By default commands act as the human; `--as agent` uses the key of one of
+ * the person's agents (see `chooseAgent`), registering a new agent when a new tool shows up.
+ */
+export async function resolveContext(
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+  role: Role,
+  wanted: AgentWanted = {},
+): Promise<Context> {
+  if (env.HAILBOARD_SERVER && env.HAILBOARD_API_KEY) {
+    return {
+      server: normalizeServer(env.HAILBOARD_SERVER, "HAILBOARD_SERVER"),
+      apiKey: env.HAILBOARD_API_KEY,
+      handle: "(from environment)",
+      boardId: undefined,
+      boardName: undefined,
+      role,
+    };
+  }
+
+  const repo = await findRepoConfig(cwd);
+  if (!repo) {
+    throw new CliError("This directory is not connected to a board.", {
+      hint: "Run `hailboard init` (or `hailboard init --join <invite link>`).",
+    });
+  }
+
+  const folderEnv = await envForFolder(env, repo.dir);
+  const credentials = (await readCredentials(folderEnv)).boards[repo.config.board_id];
+  if (!credentials) {
+    throw new CliError(`No credentials for board "${repo.config.board_name}" on this machine.`, {
+      hint: `Join it with \`hailboard init --join <invite link> --force\`.`,
+    });
+  }
+
+  let identity: Identity = credentials.human;
+  let registered = false;
+  if (role === "agent") {
+    let name = wanted.agent ?? (env.HAILBOARD_AGENT || undefined);
+    const tool = wanted.tool ?? detectAgent(env);
+    // Each live session of the person holds an agent name of its own (see agent-sessions.ts).
+    const session = sessionOf(env, wanted.session);
+    if (name === undefined && session !== undefined && tool !== undefined) {
+      const alone = chooseAgent(credentials.agents, { tool });
+      if (alone.kind === "found" || alone.kind === "register") {
+        const held = await nameForSession(folderEnv, repo.config.board_id, session, alone.name);
+        if (held !== alone.name) name = held;
+      }
+    }
+    const choice = chooseAgent(credentials.agents, { name, tool });
+    if (choice.kind === "found") {
+      identity = credentials.agents[choice.name] as AgentIdentity;
+    } else if (choice.kind === "register") {
+      identity = await registerAgent(
+        folderEnv,
+        repo.config.board_id,
+        credentials,
+        choice.name,
+        choice.tool,
+        wanted.fetch,
+      );
+      registered = true;
+    } else if (choice.kind === "none") {
+      throw new CliError("You have no agent on this board yet.", {
+        hint: "Add one with `hailboard init --agent <name>` (for example claude or codex).",
+      });
+    } else {
+      throw new CliError(`You have several agents here: ${choice.names.join(", ")}.`, {
+        hint: "Say which one with --agent <name> or HAILBOARD_AGENT=<name>.",
+      });
+    }
+  }
+
+  return {
+    server: credentials.server.replace(/\/+$/, ""),
+    apiKey: identity.api_key,
+    handle: identity.handle,
+    boardId: repo.config.board_id,
+    boardName: repo.config.board_name,
+    role,
+    configDir: configDir(folderEnv),
+    ...(registered ? { registered } : {}),
+  };
+}

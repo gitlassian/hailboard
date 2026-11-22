@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: hailboard
+          POSTGRES_PASSWORD: hailboard
+          POSTGRES_DB: hailboard
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hailboard -d hailboard"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://hailboard:hailboard@localhost:5432/hailboard
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads the pnpm version from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/server/uv.lock
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          uv sync --locked --directory packages/server
+
+      - name: Generated API types are up to date
+        run: |
+          pnpm gen:api
+          git diff --exit-code -- packages/protocol || {
+            echo "::error::packages/protocol is out of date. Run 'pnpm gen:api' and commit the result."
+            exit 1
+          }
+
+      - name: Build the CLI
+        run: pnpm --filter hailboard build
+
+      - name: Lint and format (Biome for TypeScript, Ruff for Python)
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test (Vitest and pytest, the latter against the PostgreSQL service)
+        run: pnpm test
+
+  # The server image must keep building. It runs on ARM in production, so build that platform.
+  server-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/server/Dockerfile
+          platforms: linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
